@@ -1,7 +1,7 @@
 const readline = require('readline');
 const { read_str } = require('./reader.js');
 const { pr_str } = require("./printer.js");
-const { MalSymbol, MalList, MalValue, MalVector } = require('./types.js');
+const { MalSymbol, MalList, MalVector } = require('./types.js');
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -9,10 +9,10 @@ const rl = readline.createInterface({
 });
 
 const env = {
-  '+': (a, b) => new MalValue(a.value + b.value),
-  '-': (a, b) => new MalValue(a.value - b.value),
-  '*': (a, b) => new MalValue(a.value * b.value),
-  '/': (a, b) => new MalValue(a.value / b.value),
+  '+': (...args) => args.reduce((a, b) => a + b),
+  '-': (...args) => args.reduce((a, b) => a - b),
+  '*': (...args) => args.reduce((a, b) => a * b),
+  '/': (...args) => args.reduce((a, b) => a / b),
 }
 
 const eval_ast = (ast, env) => {

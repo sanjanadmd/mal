@@ -18,19 +18,27 @@ class MalList extends MalValue {
     super(value);
   }
   pr_str() {
-    return "(" + this.value.map(x => x.pr_str()).join(' ') + ")";
+    return "(" + this.value.map(x => x instanceof MalValue ? x.pr_str() : x).join(' ') + ")";
   }
   isEmpty() {
     return this.value.length === 0
   }
 }
 
+class MalHashMap extends MalValue {
+  constructor(value) {
+    super(value);
+  }
+  pr_str() {
+    return "{" + this.value.map(x => x instanceof MalValue ? x.pr_str() : x).join(' ') + "}";
+  }
+}
 class MalVector extends MalValue {
   constructor(value) {
     super(value);
   }
   pr_str() {
-    return "[" + this.value.map(x => x.pr_str()).join(' ') + "]";
+    return "[" + this.value.map(x => x instanceof MalValue ? x.pr_str() : x).join(' ') + "]";
   }
 }
 class MalNil extends MalValue {
@@ -42,4 +50,4 @@ class MalNil extends MalValue {
   }
 }
 
-module.exports = { MalSymbol, MalValue, MalList, MalVector, MalNil };
+module.exports = { MalSymbol, MalValue, MalList, MalVector, MalNil, MalHashMap };

@@ -20,7 +20,6 @@ const env = new ENV();
 Object.entries(_env).map(([symbol, task]) => env.set(new MalSymbol(symbol), task));
 
 const eval_ast = (ast, env) => {
-  console.log(ast);
   if (ast instanceof MalSymbol) {
     return env.get(ast);
   }
@@ -57,10 +56,10 @@ const EVAL = (ast, env) => {
       for (let i = 0; i < declaration.length; i += 2) {
         newEnv.set(declaration[i], EVAL(declaration[i + 1], newEnv));
       }
-      if (ast.value[2] instanceof MalSymbol) {
-        return newEnv.get(ast.value[2])
+      if (ast.value[ast.value.length - 1] instanceof MalSymbol) {
+        return newEnv.get(ast.value[ast.value.length - 1])
       }
-      return EVAL(ast.value[2], newEnv);
+      return EVAL(ast.value[ast.value.length - 1], newEnv);
     }
   }
   const [fn, ...args] = eval_ast(ast, env).value;

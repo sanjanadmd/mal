@@ -9,15 +9,29 @@ const rl = readline.createInterface({
   output: process.stdout
 });
 
-const _env = {
-  '+': (...args) => args.reduce((a, b) => a + b),
-  '-': (...args) => args.reduce((a, b) => a - b),
-  '*': (...args) => args.reduce((a, b) => a * b),
-  '/': (...args) => args.reduce((a, b) => a / b),
-}
-
 const env = new ENV();
-Object.entries(_env).map(([symbol, task]) => env.set(new MalSymbol(symbol), task));
+
+env.set(new MalSymbol('+'), (...args) => args.reduce((a, b) => a + b));
+env.set(new MalSymbol('-'), (...args) => args.reduce((a, b) => a - b));
+env.set(new MalSymbol('*'), (...args) => args.reduce((a, b) => a * b));
+env.set(new MalSymbol('/'), (...args) => args.reduce((a, b) => a / b));
+
+const bindDef = (env, ast) => {
+  env.set(ast.value[1], EVAL(ast.value[2], env));
+  return env.get(ast.value[1]);
+};
+
+const bindLet = (env, ast) => {
+  const newEnv = new ENV(env);
+  const declaration = ast.value[1].value;
+  for (let i = 0; i < declaration.length; i += 2) {
+    newEnv.set(declaration[i], EVAL(declaration[i + 1], newEnv));
+  }
+  if (ast.value[ast.value.length - 1] instanceof MalSymbol) {
+    return newEnv.get(ast.value[ast.value.length - 1])
+  }
+  return EVAL(ast.value[ast.value.length - 1], newEnv);
+};
 
 const eval_ast = (ast, env) => {
   if (ast instanceof MalSymbol) {
@@ -46,21 +60,8 @@ const EVAL = (ast, env) => {
   if (ast.isEmpty()) return ast
 
   switch (ast.value[0].value) {
-    case "def!":
-      env.set(ast.value[1], EVAL(ast.value[2], env));
-      return env.get(ast.value[1]);
-
-    case "let*": {
-      const newEnv = new ENV(env);
-      const declaration = ast.value[1].value;
-      for (let i = 0; i < declaration.length; i += 2) {
-        newEnv.set(declaration[i], EVAL(declaration[i + 1], newEnv));
-      }
-      if (ast.value[ast.value.length - 1] instanceof MalSymbol) {
-        return newEnv.get(ast.value[ast.value.length - 1])
-      }
-      return EVAL(ast.value[ast.value.length - 1], newEnv);
-    }
+    case "def!": return bindDef(env, ast)
+    case "let*": return bindLet(env, ast)
   }
   const [fn, ...args] = eval_ast(ast, env).value;
   return fn.apply(null, args);

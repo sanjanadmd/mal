@@ -1,4 +1,4 @@
-const { MalSymbol, MalList, MalNil } = require('./types.js');
+const { MalSymbol, MalList, MalNil, MalStr } = require('./types.js');
 const { ENV } = require("./env");
 const { pr_str } = require("./printer.js");
 
@@ -34,6 +34,11 @@ const initialize = () => {
     return new MalNil();
   });
   env.set(new MalSymbol('str'), (args) => args);
+  env.set(new MalSymbol('pr-str'), (...args) => {
+    const argStr = args.map((arg) => arg.pr_str()).join(' ');
+    const updatedStr = argStr.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
+    return new MalStr(updatedStr);
+  });
   return env;
 };
 

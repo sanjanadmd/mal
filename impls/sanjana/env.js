@@ -1,9 +1,16 @@
 class ENV {
   #outer;
-  constructor(outer) {
+  constructor(outer, binds, exps) {
     this.#outer = outer;
     this.data = {};
+    this.binds = binds;
+    this.exps = exps;
   }
+
+  bindVal(exps) {
+    this.binds.forEach((variable, index) => this.data[variable.value] = exps[index]);
+  };
+
   set(symbol, malValue) {
     this.data[symbol.value] = malValue;
   }
@@ -13,7 +20,7 @@ class ENV {
     return env.data[symbol.value];
   }
   find(symbol) {
-    if (this.data[symbol.value]) return this;
+    if (this.data[symbol.value] !== undefined) return this;
     if (this.#outer) return this.#outer.find(symbol);
   }
 }

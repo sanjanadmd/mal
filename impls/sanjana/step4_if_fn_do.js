@@ -40,9 +40,8 @@ const evalIf = (ast, env) => {
 const defineFun = (ast, env) => {
   const [cmd, params, exps] = ast.value;
   const par = params.value.filter((param) => param.value !== '&')
-  const fnEnv = new ENV(env, par, exps)
   return (...args) => {
-    fnEnv.bindVal(args);
+    const fnEnv = new ENV(env, par, args)
     return EVAL(exps, fnEnv);
   }
 };

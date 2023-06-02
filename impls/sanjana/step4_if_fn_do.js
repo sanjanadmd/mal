@@ -33,7 +33,10 @@ const evalDo = (ast, env) => {
 };
 
 const evalIf = (ast, env) => {
-  const [cond, ifExp, elseExp] = ast.value.slice(1);
+  let [cond, ifExp, elseExp] = ast.value.slice(1);
+  if (isFalsy(EVAL(cond, env)) && elseExp === undefined) {
+    elseExp = new MalNil();
+  }
   return isFalsy(EVAL(cond, env)) ? EVAL(elseExp, env) : EVAL(ifExp, env);
 };
 

@@ -58,7 +58,10 @@ class MalStr extends MalValue {
     super(value);
   }
   pr_str() {
-    return '"' + this.value.toString() + '"';
+    return '"' + this.value
+      .replace(/\\/g, "\\\\")
+      .replace(/"/g, '\\"')
+      .replace(/\n/g, "\\n") + '"';
   }
   isEmpty() {
     return this.value.length === 0
@@ -77,18 +80,51 @@ class MalNil extends MalValue {
   count() {
     return 0
   }
+  equals(value) {
+    return value === 'nil'
+  }
 }
 
 class MalFunction extends MalValue {
-  constructor(ast, binds, env) {
+  constructor(ast, binds, env, fn) {
     super(ast);
     this.binds = binds;
     this.env = env;
+    this.fn = fn;
   }
   pr_str() {
     return "#<function>"
     // return '"' + this.value.toString() + '"';
   }
 }
+class MalAtom extends MalValue {
+  constructor(ast) {
+    super(ast);
+  }
+  pr_str() {
+    return "(atom " + this.value + ")";
+  }
+  deref() {
+    return this.value;
+  }
+  reset(value) {
+    this.value = value;
+    return this.value;
+  }
+  swap(fn, args) {
+    let actualFn = fn;
+    if (fn instanceof MalFunction) {
+      actualFn = fn.fn;
+    }
+    this.value = actualFn.apply(null, [this.value, ...args]);
+    return this.value;
+  }
+}
 
-module.exports = { MalSymbol, MalValue, MalList, MalVector, MalNil, MalStr, MalHashMap, MalFunction };
+const createMalString = (str) => {
+  return new MalStr(str.replace(/\\(.)/g, (y, captured) => {
+    return captured === 'n' ? '\n' : captured
+  }))
+};
+
+module.exports = { MalSymbol, MalValue, MalList, MalVector, MalNil, MalStr, MalHashMap, MalFunction, MalAtom, createMalString };

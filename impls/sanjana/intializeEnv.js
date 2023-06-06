@@ -1,45 +1,57 @@
-const { MalSymbol, MalList, MalNil, MalStr } = require('./types.js');
+const { MalSymbol, MalList, MalNil, MalStr, MalAtom, MalValue } = require('./types.js');
 const { ENV } = require("./env");
 const { pr_str } = require("./printer.js");
+const { read_str } = require('./reader.js');
+const fs = require('fs');
 
 const isFalsy = (value) => {
   return value instanceof MalNil || value === false
 };
-const initialize = () => {
-  const env = new ENV();
 
-  env.set(new MalSymbol('+'), (...args) => args.reduce((a, b) => a + b));
-  env.set(new MalSymbol('-'), (...args) => args.reduce((a, b) => a - b));
-  env.set(new MalSymbol('*'), (...args) => args.reduce((a, b) => a * b));
-  env.set(new MalSymbol('/'), (...args) => args.reduce((a, b) => a / b));
-  env.set(new MalSymbol('>'), (...args) => args.reduce((a, b) => a > b));
-  env.set(new MalSymbol('<'), (...args) => args.reduce((a, b) => a < b));
-  env.set(new MalSymbol('<='), (...args) => args.reduce((a, b) => a <= b));
-  env.set(new MalSymbol('>='), (...args) => args.reduce((a, b) => a >= b));
-  env.set(new MalSymbol('not'), (args) => isFalsy(args));
-  env.set(new MalSymbol('list'), (...args) => new MalList(args));
-  env.set(new MalSymbol('list?'), (args) => args instanceof MalList);
-  env.set(new MalSymbol('empty?'), (args) => args?.isEmpty());
-  env.set(new MalSymbol('count'), (args) => args.value.length);
-  env.set(new MalSymbol('='), (...args) => args.reduce((a, b) => a === b));
-  env.set(new MalSymbol('prn'), (...args) => {
+const coreEnv = {
+  '+': (...args) => args.reduce((a, b) => a + b),
+  '-': (...args) => args.reduce((a, b) => a - b),
+  '*': (...args) => args.reduce((a, b) => a * b),
+  '/': (...args) => args.reduce((a, b) => a / b),
+  '>': (...args) => args.reduce((a, b) => a > b),
+  '<': (...args) => args.reduce((a, b) => a < b),
+  '<=': (...args) => args.reduce((a, b) => a <= b),
+  '>=': (...args) => args.reduce((a, b) => a >= b),
+  'not': (args) => isFalsy(args),
+  'list': (...args) => new MalList(args),
+  'list?': (args) => args instanceof MalList,
+  'empty?': (args) => args?.isEmpty(),
+  'count': (args) => args.value.length,
+  '=': (...args) => args.reduce((a, b) => a === b),
+  'prn': (...args) => {
     const res = args.map(pr_str);
     console.log(res.join(' '));
     return new MalNil();
-  });
-  env.set(new MalSymbol('pr-str'), (...args) => '"' + args.map(pr_str).join('') + '"');
-  env.set(new MalSymbol('println'), (...args) => {
+  },
+  'pr-str': (...args) => '"' + args.map(pr_str).join('') + '"',
+  'println': (...args) => {
     const res = args.map(arg => arg.value);
     console.log(res.join(' '));
     return new MalNil();
-  });
-  env.set(new MalSymbol('str'), (args) => args);
-  env.set(new MalSymbol('pr-str'), (...args) => {
+  },
+  'str': (args) => args,
+  'pr-str': (...args) => {
     const argStr = args.map((arg) => arg.pr_str()).join(' ');
     const updatedStr = argStr.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
     return new MalStr(updatedStr);
-  });
-  return env;
+  },
+  'read-string': (args) => read_str(args.value),
+  'slurp': (fileName) => new MalStr(fs.readFileSync(fileName.value, 'utf-8')),
+  'atom': (value) => new MalAtom(value),
+  'atom?': (value) => value instanceof MalAtom,
+  'deref': (atom) => atom.deref(),
+  'reset!': (atom, value) => atom.reset(value),
+  'swap!': (atom, f, ...args) => atom.swap(f, args),
 };
 
+const initialize = () => {
+  const env = new ENV();
+  Object.entries(coreEnv).forEach(([key, value]) => env.set(new MalSymbol(key), value))
+  return env;
+};
 module.exports = { initialize, isFalsy };

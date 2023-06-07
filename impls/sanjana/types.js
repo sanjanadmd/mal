@@ -1,3 +1,11 @@
+const equals = (a, b) => {
+  const isA = a instanceof MalValue;
+  const isB = b instanceof MalValue;
+  if (!isA && isB) return b.equals(a)
+  if (isA) return a.equals(b)
+  return a === b;
+}
+
 class MalValue {
   constructor(value) {
     this.value = value
@@ -13,16 +21,37 @@ class MalSymbol extends MalValue {
   }
 }
 
-class MalList extends MalValue {
+class MalSeq extends MalValue {
+  constructor(value) {
+    super(value)
+  }
+  count() {
+    return this.value.length
+  }
+  isEmpty() {
+    return this.value.length === 0;
+  }
+  equals(other) {
+    if (this.count() !== other.count()) return false;
+
+    return this.value.every((value, index) => equals(value, other[index]));
+  }
+  beginsWith(symbol) {
+    return !this.isEmpty() && (this.value[0].value === symbol);
+  }
+}
+
+class MalList extends MalSeq {
   constructor(value) {
     super(value);
   }
-  pr_str() {
-    return "(" + this.value.map(x => x instanceof MalValue ? x.pr_str() : x).join(' ') + ")";
+  pr_str(printable) {
+    return "(" + this.value.map(x => x instanceof MalValue ? x.pr_str(true) : x).join(' ') + ")";
   }
   isEmpty() {
     return this.value.length === 0
   }
+
   count() {
     return this.value.length
   }
@@ -39,12 +68,12 @@ class MalHashMap extends MalValue {
     return this.value.length === 0
   }
 }
-class MalVector extends MalValue {
+class MalVector extends MalSeq {
   constructor(value) {
     super(value);
   }
   pr_str() {
-    return "[" + this.value.map(x => x instanceof MalValue ? x.pr_str() : x).join(' ') + "]";
+    return "[" + this.value.map(x => x instanceof MalValue ? x.pr_str(true) : x).join(' ') + " ]";
   }
   isEmpty() {
     return this.value.length === 0
@@ -57,11 +86,14 @@ class MalStr extends MalValue {
   constructor(value) {
     super(value);
   }
-  pr_str() {
-    return '"' + this.value
-      .replace(/\\/g, "\\\\")
-      .replace(/"/g, '\\"')
-      .replace(/\n/g, "\\n") + '"';
+  pr_str(printable = false) {
+    if (printable) {
+      return '"' + this.value
+        .replace(/\\/g, "\\\\")
+        .replace(/"/g, '\\"')
+        .replace(/\n/g, "\\n") + '"';
+    }
+    return '"' + this.value + '"';
   }
   isEmpty() {
     return this.value.length === 0
@@ -127,4 +159,4 @@ const createMalString = (str) => {
   }))
 };
 
-module.exports = { MalSymbol, MalValue, MalList, MalVector, MalNil, MalStr, MalHashMap, MalFunction, MalAtom, createMalString };
+module.exports = { MalSymbol, MalValue, MalList, MalVector, MalNil, MalStr, MalHashMap, MalFunction, MalAtom, createMalString, equals, MalSeq };

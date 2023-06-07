@@ -1,4 +1,4 @@
-const { MalSymbol, MalList, MalNil, MalStr, MalAtom, MalValue } = require('./types.js');
+const { MalSymbol, MalList, MalNil, MalStr, MalAtom, MalValue, MalSeq, MalVector, equals } = require('./types.js');
 const { ENV } = require("./env");
 const { pr_str } = require("./printer.js");
 const { read_str } = require('./reader.js');
@@ -19,12 +19,13 @@ const coreEnv = {
   '>=': (...args) => args.reduce((a, b) => a >= b),
   'not': (args) => isFalsy(args),
   'list': (...args) => new MalList(args),
+  'vec': (args) => new MalVector(args instanceof MalValue ? args.value : args),
   'list?': (args) => args instanceof MalList,
   'empty?': (args) => args?.isEmpty(),
   'count': (args) => args.value.length,
-  '=': (...args) => args.reduce((a, b) => a === b),
+  '=': (...args) => args.reduce(equals),
   'prn': (...args) => {
-    const res = args.map(pr_str);
+    const res = args.map((arg) => arg.pr_str(true));
     console.log(res.join(' '));
     return new MalNil();
   },
@@ -36,9 +37,9 @@ const coreEnv = {
   },
   'str': (args) => args,
   'pr-str': (...args) => {
-    const argStr = args.map((arg) => arg.pr_str()).join(' ');
-    const updatedStr = argStr.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
-    return new MalStr(updatedStr);
+    const argStr = args.map((arg) => arg.pr_str(true)).join(' ');
+    // const updatedStr = argStr.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
+    return new MalStr(argStr);
   },
   'read-string': (args) => read_str(args.value),
   'slurp': (fileName) => new MalStr(fs.readFileSync(fileName.value, 'utf-8')),
@@ -47,6 +48,8 @@ const coreEnv = {
   'deref': (atom) => atom.deref(),
   'reset!': (atom, value) => atom.reset(value),
   'swap!': (atom, f, ...args) => atom.swap(f, args),
+  'cons': (value, list) => new MalList([value, ...list.value]),
+  'concat': (...lists) => new MalList(lists.flatMap(x => x.value)),
 };
 
 const initialize = () => {

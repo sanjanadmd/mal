@@ -39,6 +39,16 @@ class MalSeq extends MalValue {
   beginsWith(symbol) {
     return !this.isEmpty() && (this.value[0].value === symbol);
   }
+  nth(n) {
+    if (n >= this.value.length) throw "index out of range";
+    return this.value[n];
+  }
+  first() {
+    return this.isEmpty() ? new MalNil() : this.value[0];
+  }
+  rest() {
+    return new MalList(this.value.slice(1));
+  }
 }
 
 class MalList extends MalSeq {
@@ -118,15 +128,18 @@ class MalNil extends MalValue {
 }
 
 class MalFunction extends MalValue {
-  constructor(ast, binds, env, fn) {
+  constructor(ast, binds, env, fn, isMacro = false) {
     super(ast);
     this.binds = binds;
     this.env = env;
     this.fn = fn;
+    this.isMacro = isMacro;
   }
   pr_str() {
     return "#<function>"
-    // return '"' + this.value.toString() + '"';
+  }
+  apply(contx, args) {
+    return this.fn.apply(null, args);
   }
 }
 class MalAtom extends MalValue {

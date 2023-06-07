@@ -1,0 +1,209 @@
+const readline = require('readline');
+const { read_str } = require('./reader.js');
+const { pr_str } = require("./printer.js");
+const { MalSymbol, MalList, MalVector, MalHashMap, MalNil, MalValue, MalFunction, MalStr } = require('./types.js');
+const { ENV } = require('./env.js');
+const { initialize, isFalsy } = require('./intializeEnv.js');
+
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
+
+const bindDef = (ast, env) => {
+  env.set(ast.value[1], EVAL(ast.value[2], env));
+  return env.get(ast.value[1]);
+};
+
+const handleDefMacro = (ast, env) => {
+  const macro = EVAL(ast.value[2], env)
+  macro.isMacro = true;
+  env.set(ast.value[1], macro);
+  return env.get(ast.value[1]);
+};
+
+const isMacroCall = (ast, env) => {
+  try {
+    return (
+      ast instanceof MalList
+      && !ast.isEmpty()
+      && ast.value[0] instanceof MalSymbol
+      && env.get(ast.value[0]).isMacro
+    );
+
+  } catch (error) {
+    return false;
+  }
+};
+
+
+const macroExpand = (ast, env) => {
+  while (isMacroCall(ast, env)) {
+    const macro = env.get(ast.value[0])
+    ast = macro.apply(null, ast.value.slice(1))
+  }
+  return ast;
+};
+
+const bindLet = (ast, env) => {
+  const [variables, ...forms] = ast.value.slice(1)
+  const newEnv = new ENV(env);
+  const bindings = variables.value;
+  for (let i = 0; i < bindings.length; i += 2) {
+    newEnv.set(bindings[i], EVAL(bindings[i + 1], newEnv));
+  }
+  const doForms = new MalList([new MalSymbol('do'), ...forms]);
+  return [doForms, newEnv];
+};
+
+const evalDo = (ast, env) => {
+  const forms = ast.value.slice(1)
+  const evaluated = forms.slice(0, -1).map((task) => EVAL(task, env))
+  return forms.slice(-1);
+};
+
+const evalIf = (ast, env) => {
+  let [cond, ifExp, elseExp] = ast.value.slice(1);
+  if (isFalsy(EVAL(cond, env)) && elseExp === undefined) {
+    elseExp = new MalNil();
+  }
+  return isFalsy(EVAL(cond, env)) ? elseExp : ifExp;
+};
+
+const defineFun = (ast, env) => {
+  const [cmd, params, ...exps] = ast.value;
+  const doForms = new MalList([new MalSymbol('do'), ...exps]);
+  const newfn = (...args) => {
+    const newEnv = new ENV(env, params.value, args);
+    return EVAL(doForms, newEnv)
+  }
+  return new MalFunction(doForms, params, env, newfn);
+};
+
+const eval_ast = (ast, env) => {
+  if (ast instanceof MalSymbol) {
+    return env.get(ast);
+  }
+  if (ast instanceof MalList) {
+    const newAst = ast.value.map(x => EVAL(x, env));
+    return new MalList(newAst);
+  }
+  if (ast instanceof MalVector) {
+    const newAst = ast.value.map(x => EVAL(x, env));
+    return new MalVector(newAst);
+  }
+  if (ast instanceof MalHashMap) {
+    const newAst = ast.value.map(x => EVAL(x, env));
+    return new MalHashMap(newAst);
+  }
+
+  return ast;
+};
+
+const quasiquote = (ast, env) => {
+  if (ast instanceof MalList && ast.value[0]?.value === 'unquote')
+    return ast.value[1];
+
+  if (ast instanceof MalList) {
+    let elt = new MalList([]);
+    for (let index = ast.value.length - 1; index >= 0; index--) {
+      const element = ast.value[index];
+      if (element instanceof MalList && element.beginsWith("splice-unquote")) {
+        elt = new MalList([new MalSymbol('concat'), element.value[1], elt]);
+      } else {
+        elt = new MalList([new MalSymbol('cons'), quasiquote(element), elt]);
+      }
+    }
+    return elt;
+  }
+  if (ast instanceof MalVector) {
+    let res = new MalVector([]);
+    for (let index = ast.value.length - 1; index >= 0; index--) {
+      const element = ast.value[index];
+      if (element instanceof MalVector && element.beginsWith("splice-unquote")) {
+        res = new MalList([new MalSymbol('concat'), element.value[1], res]);
+      } else {
+        res = new MalList([new MalSymbol('cons'), quasiquote(element), res]);
+      }
+    }
+    return res;
+  }
+  if (ast instanceof MalSymbol)
+    return new MalList([new MalSymbol('quote'), ast]);
+
+  return ast;
+};
+
+const READ = (str) => read_str(str);
+
+const EVAL = (ast, env) => {
+  while (true) {
+    if (!(ast instanceof MalList)) return eval_ast(ast, env);
+    if (ast.isEmpty()) return ast;
+
+    ast = macroExpand(ast, env);
+
+    if (!(ast instanceof MalList)) return eval_ast(ast, env);
+
+    switch (ast.value[0].value) {
+      case "def!": return bindDef(ast, env)
+      case "defmacro!": return handleDefMacro(ast, env)
+      case "let*": [ast, env] = bindLet(ast, env);
+      case "do": [ast] = evalDo(ast, env); break;
+      case "if": ast = evalIf(ast, env); break;
+      case "quote": return ast.value[1];
+      case "quasiquote": ast = quasiquote(ast.value[1], env); break;
+      case "quasiquoteexpand": return quasiquote(ast.value[1], env);
+      case "macroexpand": return macroExpand(ast.value[1], env);
+      case "fn*": ast = defineFun(ast, env); break;
+      default: {
+        const [fn, ...args] = eval_ast(ast, env).value;
+        if (fn instanceof MalFunction) {
+          ast = fn.value;
+          env = new ENV(fn.env, fn.binds.value, args);
+        } else {
+          return fn.apply(null, args);
+        }
+      }
+    }
+  }
+};
+
+const PRINT = (exp) => pr_str(exp);
+const env = initialize();
+
+const createReplEnv = () => {
+  env.set(new MalSymbol('eval'), (ast) => EVAL(ast, env));
+  env.set(new MalSymbol('*ARGV*'), new MalList([]));
+};
+
+createReplEnv();
+
+const rep = (str) => PRINT(EVAL(READ(str), env));
+
+const repl = () => {
+  rl.question('user> ', (line) => {
+    try {
+      console.log(rep(line));
+    } catch (e) {
+      console.log(e);
+    }
+    repl();
+  });
+}
+
+rep('(def! load-file (fn* (f) (eval (read-string (str "(do " (slurp f) "\nnil)")))))');
+
+rep("(defmacro! cond (fn* (& xs) (if (> (count xs) 0) (list 'if (first xs) (if (> (count xs) 1) (nth xs 1) (throw \"odd number of forms to cond\")) (cons 'cond (rest (rest xs)))))))"
+);
+
+if (process.argv.length >= 3) {
+  const args = process.argv.slice(3);
+  const malArgs = new MalList(args.map(x => new MalStr(x)));
+  env.set(new MalSymbol("*ARGV*"), malArgs);
+  const code = '( load-file "' + process.argv[2] + '" )';
+  rep(code);
+  rl.close();
+} else {
+  repl();
+}

@@ -38,7 +38,6 @@ const coreEnv = {
   'str': (args) => args,
   'pr-str': (...args) => {
     const argStr = args.map((arg) => arg.pr_str(true)).join(' ');
-    // const updatedStr = argStr.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
     return new MalStr(argStr);
   },
   'read-string': (args) => read_str(args.value),
@@ -50,6 +49,9 @@ const coreEnv = {
   'swap!': (atom, f, ...args) => atom.swap(f, args),
   'cons': (value, list) => new MalList([value, ...list.value]),
   'concat': (...lists) => new MalList(lists.flatMap(x => x.value)),
+  'nth': (list, n) => list.nth(n),
+  'first': (list) => list instanceof MalNil ? new MalNil() : list.first(),
+  'rest': (list) => list instanceof MalNil ? new MalList([]) : list.rest(),
 };
 
 const initialize = () => {

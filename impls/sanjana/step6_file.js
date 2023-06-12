@@ -121,7 +121,8 @@ const repl = () => {
 
 rep('(def! load-file (fn* (f) (eval (read-string (str "(do " (slurp f) "\nnil)")))))');
 
-if (process.argv.length >= 3) {
+
+if (process.argv.length > 2) {
   const args = process.argv.slice(3);
   const malArgs = new MalList(args.map(x => new MalStr(x)));
   env.set(new MalSymbol("*ARGV*"), malArgs);

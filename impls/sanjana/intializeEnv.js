@@ -3,6 +3,7 @@ const { ENV } = require("./env");
 const { pr_str } = require("./printer.js");
 const { read_str } = require('./reader.js');
 const fs = require('fs');
+const { createMalString } = require('./types.js');
 
 const isFalsy = (value) => {
   return value instanceof MalNil || value === false
@@ -35,7 +36,7 @@ const coreEnv = {
     console.log(res.join(' '));
     return new MalNil();
   },
-  'str': (args) => args,
+  'str': (...args) => createMalString(args),
   'pr-str': (...args) => {
     const argStr = args.map((arg) => arg.pr_str(true)).join(' ');
     return new MalStr(argStr);
